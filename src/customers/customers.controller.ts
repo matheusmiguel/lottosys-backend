@@ -2,32 +2,32 @@ import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { Permissions } from 'src/auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { RegistrationsService } from './registrations.service';
+import { CustomersService } from './customers.service';
 import { CurrentUserService } from 'src/auth/current-user.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { SetAffiliateDto } from './dtos/SetAffiliateDto';
+import { SetManagerDto } from './dtos/SetManagerDto';
 
-@Controller('registrations')
-export class RegistrationsController {
+@Controller('customers')
+export class CustomersController {
     constructor(
-        private readonly registrationsService: RegistrationsService,
+        private readonly customersService: CustomersService,
         private readonly currentUser: CurrentUserService
     ) { }
 
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Post('set-affiliate')
+    @Post('set-manager')
     @Permissions('adm.claff')
-    async setAffiliate(
-        @Body() dto: SetAffiliateDto, 
+    async setManager(
+        @Body() dto: SetManagerDto, 
         @CurrentUser() currentUser,
     ) {
-        return this.registrationsService.setAffiliate(dto, currentUser);
+        return this.customersService.setManager(dto, currentUser);
     }
 
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Get()
-    // @Permissions('registrations')
-    async listRegistrations(
+    // @Permissions('customers')
+    async listCustomers(
         @Query('search_type') search_type: string, 
         @Query('user_type') user_type: number, 
         @Query('q') q: string, 
@@ -37,6 +37,6 @@ export class RegistrationsController {
         @Query('enddate') enddate: string
     ) {
         let currentUser = this.currentUser.getUser();
-        return this.registrationsService.listRegistrations(search_type, q, page, limit, currentUser, date, enddate);
+        return this.customersService.listCustomers(search_type, q, page, limit, currentUser, date, enddate);
     }
 }

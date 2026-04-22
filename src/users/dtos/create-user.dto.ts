@@ -14,7 +14,7 @@ import {
 export class CreateUserDto {
     @Type(() => Number)
     @IsInt()
-    @IsIn([2, 3, 4])
+    @IsIn([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     type: number;
 
     @IsString()
@@ -44,12 +44,8 @@ export class CreateUserDto {
     @MinLength(6)
     password: string;
 
-    @IsString()
-    @IsIn(['usd', 'brl', 'eur', 'btc'])
-    currency: string;
-
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    ngr_percent?: number = 0;
+    region?: number = 0;
 }

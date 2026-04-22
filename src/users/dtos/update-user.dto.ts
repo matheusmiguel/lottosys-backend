@@ -19,7 +19,7 @@ export class UpdateUserDto {
     status: number;
 
     @IsInt()
-    @IsIn([2, 3, 4, 5, 6])
+    @IsIn([2, 3, 4, 5, 6, 7, 8, 9, 10])
     type: number;
 
     @IsEmail()
@@ -39,16 +39,4 @@ export class UpdateUserDto {
     @MinLength(6)
     @IsOptional()
     password?: string;
-
-    @IsString()
-    @IsIn(['usd', 'brl', 'eur', 'btc'])
-    currency: string;
-
-    @IsOptional()
-    @Type(() => Number)
-    @Min(0)
-    @Max(100)
-    ngr_percent?: number;
-
-    withdrawal_configs?: any;
 }

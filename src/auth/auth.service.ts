@@ -110,16 +110,14 @@ export class AuthService {
             status: 'success',
             user: {
                 id: user.id,
-                brand_id: user.brand_id,
+                site_id: user.site_id,
                 status: user.status,
                 type: user.type,
                 email: user.email,
                 login: user.login,
                 img: user.img,
-                currency: user.currency,
                 last_login: user.last_login,
                 permissions: this.extractPermissions(user.permissions),
-                two_factor_enabled: user.two_factor_enabled,
             }
         };
     }
@@ -161,15 +159,6 @@ export class AuthService {
 
     async login(dto: LoginDto) {
         const user = await this.validateUser(dto.email, dto.password);
-
-        // Se 2FA ativo, não retorna tokens ainda
-        if (user.two_factor_enabled) {
-            return {
-                status: 'pending_2fa',
-                user_id: user.id,
-            };
-        }
-
         return this.issueTokensWithNewRefreshId(user.id);
     }
 
@@ -216,7 +205,7 @@ export class AuthService {
     async refreshTokens(dto: RefreshTokenDto) {
         type RefreshPayload = {
             sub: number;
-            brand_id: number;
+            site_id: number;
             user_type: number | string;
             email: string;
             login: string;
@@ -271,11 +260,10 @@ export class AuthService {
 
         const base = {
             sub: user.id,
-            brand_id: user.brand_id,
+            site_id: user.site_id,
             user_type: user.type,
             email: user.email,
             login: user.login,
-            currency: user.currency,
             permissions,
         };
 
@@ -312,11 +300,10 @@ export class AuthService {
 
         const base = {
             sub: user.id,
-            brand_id: user.brand_id,
+            site_id: user.site_id,
             user_type: user.type,
             email: user.email,
             login: user.login,
-            currency: user.currency,
             permissions,
         };
 
@@ -355,7 +342,7 @@ export class AuthService {
             access_token,
             refresh_token,
             user_type: user.type,
-            brand_id: user.brand_id,
+            site_id: user.site_id,
             permissions,
         };
     }
@@ -373,11 +360,10 @@ export class AuthService {
 
         const base = {
             sub: user.id,
-            brand_id: user.brand_id,
+            site_id: user.site_id,
             user_type: user.type,
             email: user.email,
             login: user.login,
-            currency: user.currency,
             permissions,
         };
 
@@ -507,68 +493,5 @@ export class AuthService {
             id: ipData.id,
             whitelisted: ipData.whitelisted,
         };
-    }
-
-    // ─── Gera o secret e retorna o QR Code para o usuário escanear
-    async generate2FA(userId: number) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new UnauthorizedException('Usuário não encontrado');
-
-        if (user?.two_factor_secret && user?.two_factor_enabled) throw new ForbiddenException({ message: 'A conta já possui 2FA configurado',  cause: '2FA_ALREADY_CONFIGURED' });
-
-        const secret = authenticator.generateSecret();
-        const otpAuthUrl = authenticator.keyuri(user.email, process.env.NAME!, secret);
-        const qrCode = await QRCode.toDataURL(otpAuthUrl);
-
-        // Salva o secret mas ainda NÃO ativa — só ativa após confirmar
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: { two_factor_secret: secret, two_factor_enabled: false },
-        });
-
-        return { qrCode, secret }; // qrCode é base64, joga direto num <img src="...">
-    }
-
-    // ─── Usuário escaneia o QR e confirma com o primeiro código — ativa o 2FA
-    async enable2FA(userId: number, token: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user?.two_factor_secret) throw new ForbiddenException('2FA não iniciado');
-
-        const valid = authenticator.verify({ token, secret: user.two_factor_secret });
-        if (!valid) throw new ForbiddenException('Código inválido');
-
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: { two_factor_enabled: true },
-        });
-
-        return { status: 'success' };
-    }
-
-    // ─── Desativa o 2FA
-    async disable2FA(userId: number, token: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user?.two_factor_enabled) throw new ForbiddenException('2FA não está ativo');
-
-        const valid = authenticator.verify({ token, secret: user.two_factor_secret! });
-        if (!valid) throw new ForbiddenException('Código inválido');
-
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: { two_factor_enabled: false, two_factor_secret: null },
-        });
-
-        return { status: 'success' };
-    }
-
-    // ─── Valida o código durante o login
-    async validate2FA(userId: number, token: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user?.two_factor_secret) throw new ForbiddenException('2FA não configurado');
-
-        const valid = authenticator.verify({ token, secret: user.two_factor_secret });
-        if (!valid) throw new ForbiddenException('Código 2FA inválido');
-
-        return true;
     }
 }

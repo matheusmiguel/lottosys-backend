@@ -1,21 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CurrencyService } from 'src/currency/currency.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
-import { AffiliatesService } from 'src/affiliates/affiliates.service';
 import { PERMISSIONS } from 'src/auth/permissions';
 import { isStringArray, realToCents, sanitizePermissions } from 'src/utils/helpers.util';
 import * as bcrypt from 'bcrypt';
-import { UpdateSubcommissionsDto } from './dtos/update-subcommissions.dto';
 import { randomUUID } from 'crypto';
 
 @Injectable()
 export class UsersService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly currencyService: CurrencyService,
-        private readonly affiliatesService: AffiliatesService,
     ) { }
 
     async searchUsers(q: string, currentUser: any) {
@@ -28,7 +23,7 @@ export class UsersService {
         }
 
         let where: any = {
-            brand_id: currentUser.brand_id,
+            site_id: currentUser.site_id,
             deleted_at: null,
             OR: [
                 { name: { contains: q } },
@@ -37,17 +32,17 @@ export class UsersService {
             ]
         };
 
-        let affiliateIds: number[] = [];
+        let userIds: number[] = [];
 
         if (currentUser.user_type > 2) {
-            affiliateIds = await this.affiliatesService.getAffiliateTreeIds(
+            userIds = await this.getManagerTreeIds(
                 currentUser.id,
-                currentUser.brand_id
+                currentUser.site_id
             );
 
             // remove ele mesmo
-            affiliateIds = affiliateIds.filter(id => id !== currentUser.id);
-            where.id = { in: affiliateIds };
+            userIds = userIds.filter(id => id !== currentUser.id);
+            where.id = { in: userIds };
         }
 
         const users = await this.prisma.user.findMany({
@@ -73,7 +68,7 @@ export class UsersService {
     // CREATE
     async createUser(dto: CreateUserDto, currentUser: any) {
         // Bloqueia criação de usuários do mesmo tipo ou superior ao do usuário atual
-        if ((dto.type <= currentUser.user_type && currentUser.user_type > 2 && dto.type !== 4) || dto.type === 1) {
+        if ((dto.type <= currentUser.user_type && currentUser.user_type > 2 && dto.type !== 10) || dto.type === 1) {
             throw new BadRequestException('You cannot create users with the same or higher type than yours!');
         }
 
@@ -88,21 +83,21 @@ export class UsersService {
             throw new BadRequestException('User not found!');
         }
 
-        // Configurações da brand
-        const brand = await this.prisma.brand.findUnique({
+        // Configurações da site
+        const site = await this.prisma.site.findUnique({
             where: {
-                id: currentUser.brand_id
+                id: currentUser.site_id
             }
         });
 
-        if (!brand) {
-            throw new BadRequestException('Brand not found!');
+        if (!site) {
+            throw new BadRequestException('Site not found!');
         }
 
-        // Pesquisa usuários da mesma brand com mesmos dados
+        // Pesquisa usuários da mesma site com mesmos dados
         const existingUser = await this.prisma.user.findFirst({
             where: {
-                brand_id: currentUser.brand_id,
+                site_id: currentUser.site_id,
                 OR: [
                     { login: dto.login },
                     { email: dto.email }
@@ -118,41 +113,23 @@ export class UsersService {
         const password = await bcrypt.hash(dto.password, 12);
         const permissions = this.getPermissionsByType(dto.type);
         const parent_id = admin.type > 2 ? admin.id : 0;
-        const ngr_percent = admin.type > 2 ? admin.ngr_percent : (dto.ngr_percent || 0);
 
         try {
             const user = await this.prisma.user.create({
                 data: {
-                    brand_id: currentUser.brand_id,
+                    site_id: currentUser.site_id,
                     validated: true,
-                    confirmed: true,
+                    region_id: dto.region || 0,
                     status: 1,
                     type: dto.type,
-                    validation_2fa: 0,
-                    manager_id: 0,
-                    parent_affiliate_id: parent_id,
+                    manager_id: parent_id,
                     name: dto.name,
                     login: dto.login,
                     email: dto.email,
                     phone: dto.phone,
                     document: dto.document,
                     password: password,
-                    currency: dto.currency,
-                    ngr_percent: ngr_percent,
                     permissions: permissions,
-                }
-            });
-
-            // Cria carteira
-            await this.prisma.wallet.create({
-                data: {
-                    brand_id: currentUser.brand_id,
-                    user_id: user.id,
-                    name: 'Carteira Principal',
-                    currency: dto.currency,
-                    description: '',
-                    balance: 0,
-                    status: 1
                 }
             });
 
@@ -161,8 +138,8 @@ export class UsersService {
                 message: 'User created successfully',
                 data: {
                     id: user.id,
-                    brand_id: user.brand_id,
-                    confirmed: user.confirmed,
+                    site_id: user.site_id,
+                    manager_id: user.manager_id,
                     type: user.type,
                     status: user.status,
                     email: user.email,
@@ -170,9 +147,6 @@ export class UsersService {
                     login: user.login,
                     phone: user.phone,
                     document: user.document,
-                    currency: user.currency,
-                    ngr_percent: user.ngr_percent,
-                    parent_affiliate_id: user.parent_affiliate_id,
                     permissions: user.permissions,
                 }
             };
@@ -193,7 +167,7 @@ export class UsersService {
     ) {
         const skip = (page - 1) * limit;
         let where: any = {
-            brand_id: currentUser.brand_id,
+            site_id: currentUser.site_id,
             deleted_at: null
         };
 
@@ -204,7 +178,7 @@ export class UsersService {
         let affiliateIds: number[] = [];
         if (currentUser.user_type > 2) {
             // Lista árvore de afiliados
-            affiliateIds = await this.affiliatesService.getAffiliateTreeIds(currentUser.id, currentUser.brand_id);
+            affiliateIds = await this.getManagerTreeIds(currentUser.id, currentUser.site_id);
 
             // Remove próprio ID
             affiliateIds = affiliateIds.filter(id => id !== currentUser.id);
@@ -251,7 +225,7 @@ export class UsersService {
                 where,
                 select: {
                     id: true,
-                    confirmed: true,
+                    manager_id: true,
                     type: true,
                     status: true,
                     name: true,
@@ -260,7 +234,6 @@ export class UsersService {
                     phone: true,
                     document: true,
                     img: true,
-                    parent_affiliate_id: true,
                     created_at: true
                 },
                 orderBy: {
@@ -287,68 +260,13 @@ export class UsersService {
     }
 
     // GET
-    async getUserSubCommissions(id: number, currentUser: any) {
-
-        const user = await this.prisma.user.findFirst({
-            select: {
-                id: true,
-                brand_id: true,
-                type: true,
-                status: true,
-                email: true,
-                login: true,
-                parent_affiliate_id: true,
-                sub_commissions: true,
-            },
-            where: {
-                id,
-                brand_id: currentUser.brand_id
-            }
-        });
-
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
-
-        // Se não for sub-afiliado
-        if (user.parent_affiliate_id === 0) {
-            throw new BadRequestException('This user is not a sub-affiliate!');
-        }
-
-        // Evita listar usuários do mesmo tipo ou superior ao do usuário atual
-        if (currentUser.user_type > 2 && user.parent_affiliate_id !== currentUser.id) {
-            throw new BadRequestException('You don\'t have permission to view this user!');
-        }
-
-        // Pega afiliado pai
-        const affiliate = await this.prisma.user.findFirst({
-            where: {
-                id: user.parent_affiliate_id
-            }
-        });
-
-        return {
-            status: 'success',
-            data: {
-                ...user,
-                parent: {
-                    id: affiliate?.id,
-                    name: affiliate?.name,
-                    email: affiliate?.email,
-                    login: affiliate?.login,
-                }
-            }
-        };
-    }
-
-    // GET
     async getUser(id: number, currentUser: any) {
 
         const user = await this.prisma.user.findFirst({
             select: {
                 id: true,
-                brand_id: true,
-                confirmed: true,
+                site_id: true,
+                manager_id: true,
                 type: true,
                 status: true,
                 email: true,
@@ -356,16 +274,11 @@ export class UsersService {
                 login: true,
                 phone: true,
                 document: true,
-                currency: true,
-                ngr_percent: true,
-                parent_affiliate_id: true,
-                sub_commissions: true,
                 permissions: true,
-                withdrawal_configs: true,
             },
             where: {
                 id,
-                brand_id: currentUser.brand_id
+                site_id: currentUser.site_id
             }
         });
 
@@ -374,18 +287,17 @@ export class UsersService {
         }
 
         // Evita listar usuários do mesmo tipo ou superior ao do usuário atual
-        if (user.type <= currentUser.user_type && currentUser.user_type > 2 && user.parent_affiliate_id !== currentUser.id) {
+        if (user.type <= currentUser.user_type && currentUser.user_type > 2 && user.manager_id !== currentUser.id) {
             throw new BadRequestException('You don\'t have permission to view this user!');
         }
 
-        const brand = await this.prisma.brand.findFirst({
+        const site = await this.prisma.site.findFirst({
             where: {
-                id: currentUser.brand_id
+                id: currentUser.site_id
             },
             select: {
                 id: true,
-                currency: true,
-                withdrawal_configs: true,
+                name: true,
             }
         });
 
@@ -394,7 +306,7 @@ export class UsersService {
             data: {
                 ...user,
                 permissions_full: this.mapPermissions((user.permissions as string[]) || [], currentUser.permissions as string[]),
-                brand
+                site
             }
         };
     }
@@ -405,7 +317,7 @@ export class UsersService {
         const user = await this.prisma.user.findFirst({
             where: {
                 id,
-                brand_id: currentUser.brand_id
+                site_id: currentUser.site_id
             }
         });
 
@@ -443,46 +355,12 @@ export class UsersService {
     }
 
     // UPDATE
-    async updateUserSubcommissions(id: number, dto: UpdateSubcommissionsDto, currentUser: any) {
-
-        const user = await this.prisma.user.findFirst({
-            where: {
-                id,
-                brand_id: currentUser.brand_id
-            }
-        });
-
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
-
-        // Evita alterar usuários do mesmo tipo ou superior ao do usuário atual
-        if (user.type <= currentUser.user_type && currentUser.user_type > 2 && user.parent_affiliate_id !== currentUser.id) {
-            throw new BadRequestException('You don\'t have permission to edit this user!');
-        }
-
-        const updated = await this.prisma.user.update({
-            where: {
-                id
-            },
-            data: {
-                sub_commissions: JSON.parse(JSON.stringify(dto)),
-            }
-        });
-
-        return {
-            status: 'success',
-            data: null
-        };
-    }
-
-    // UPDATE
     async updateUser(id: number, dto: UpdateUserDto, currentUser: any) {
 
         const user = await this.prisma.user.findFirst({
             where: {
                 id,
-                brand_id: currentUser.brand_id
+                site_id: currentUser.site_id
             }
         });
 
@@ -491,11 +369,9 @@ export class UsersService {
         }
 
         // Evita alterar usuários do mesmo tipo ou superior ao do usuário atual
-        if (user.type <= currentUser.user_type && currentUser.user_type > 2 && user.parent_affiliate_id !== currentUser.id) {
+        if (user.type <= currentUser.user_type && currentUser.user_type > 2 && user.manager_id !== currentUser.id) {
             throw new BadRequestException('You don\'t have permission to view this user!');
         }
-
-        const ngr_percent = dto.ngr_percent !== undefined ? dto.ngr_percent : user.ngr_percent;
 
         // Definição de senha
         let password: string | undefined = undefined;
@@ -511,11 +387,6 @@ export class UsersService {
             user_token = randomUUID();
         }
 
-        // Ajuste
-        if(dto.withdrawal_configs?.min_amount){
-            dto.withdrawal_configs.min_amount = realToCents(dto.withdrawal_configs.min_amount);
-        }
-
         const updated = await this.prisma.user.update({
             where: {
                 id
@@ -523,13 +394,10 @@ export class UsersService {
             data: {
                 email: dto.email,
                 phone: dto.phone,
-                currency: dto.currency,
                 status: dto.status,
                 type: dto.type,
-                ngr_percent: ngr_percent,
                 user_token,
                 password: password,
-                withdrawal_configs: dto.withdrawal_configs ?? null,
             }
         });
 
@@ -537,8 +405,8 @@ export class UsersService {
             status: 'success',
             data: {
                 id: updated.id,
-                brand_id: updated.brand_id,
-                confirmed: updated.confirmed,
+                site_id: updated.site_id,
+                manager_id: updated.manager_id,
                 type: updated.type,
                 status: updated.status,
                 email: updated.email,
@@ -546,9 +414,6 @@ export class UsersService {
                 login: updated.login,
                 phone: updated.phone,
                 document: updated.document,
-                currency: updated.currency,
-                ngr_percent: updated.ngr_percent,
-                parent_affiliate_id: updated.parent_affiliate_id,
                 permissions: updated.permissions,
             }
         };
@@ -560,7 +425,7 @@ export class UsersService {
         const user = await this.prisma.user.findFirst({
             where: {
                 id,
-                brand_id: currentUser.brand_id
+                site_id: currentUser.site_id
             }
         });
 
@@ -592,7 +457,7 @@ export class UsersService {
         const user = await this.prisma.user.findFirst({
             where: {
                 id,
-                brand_id: currentUser.brand_id
+                site_id: currentUser.site_id
             }
         });
 
@@ -614,51 +479,6 @@ export class UsersService {
             where: { id },
             data: {
                 status: user.status === 1 ? 0 : 1
-            }
-        });
-
-        return {
-            status: 'success',
-            data: updated
-        };
-    }
-
-    async confirmUser(
-        id: number,
-        currentUser: any
-    ) {
-
-        const user = await this.prisma.user.findFirst({
-            where: {
-                id,
-                brand_id: currentUser.brand_id
-            }
-        });
-
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
-
-        // Evita alterar usuários do mesmo tipo ou superior ao do usuário atual
-        if (user.type <= currentUser.user_type && currentUser.user_type > 2) {
-            throw new BadRequestException('You cannot update users with the same or higher type than yours!');
-        }
-
-        // Evita alterar usuários do mesmo tipo ou superior ao do usuário atual
-        if (user.manager_id !== currentUser.id && currentUser.user_type > 2) {
-            throw new BadRequestException('You cannot update users that are not your subordinates!');
-        }
-
-        // Evita alterar usuários do mesmo tipo ou superior ao do usuário atual
-        if (user.confirmed) {
-            throw new BadRequestException('This user is already confirmed!');
-        }
-
-        const updated = await this.prisma.user.update({
-            where: { id },
-            data: {
-                confirmed: true,
-                status: 1
             }
         });
 
@@ -696,6 +516,49 @@ export class UsersService {
                 }
             });
         });
+
+        return result;
+    }
+
+    async getManagerTreeIds(rootId: number, site_id: number): Promise<number[]> {
+
+        const users = await this.prisma.user.findMany({
+            where: {
+                site_id,
+            },
+            select: {
+                id: true,
+                manager_id: true
+            }
+        });
+
+        const tree: Record<number, number[]> = {};
+
+        for (const u of users) {
+
+            if (!u.manager_id) continue;
+
+            if (!tree[u.manager_id]) {
+                tree[u.manager_id] = [];
+            }
+
+            tree[u.manager_id].push(u.id);
+        }
+
+        const result: number[] = [];
+        const queue: number[] = [rootId];
+
+        while (queue.length) {
+
+            const current = queue.shift()!;
+            result.push(current);
+
+            const children = tree[current] || [];
+
+            for (const child of children) {
+                queue.push(child);
+            }
+        }
 
         return result;
     }

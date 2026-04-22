@@ -4,12 +4,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 
 export interface JwtPayload {
     sub: number | string;
-    brand_id: number;
+    site_id: number;
     user_type: string;
     email: string;
     login: string;
     permissions: string[];
-    currency: string;
     type: 'access' | 'refresh';
     rtid?: string;
 }
@@ -28,11 +27,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         // vira req.user
         return {
             id: payload.sub,
-            brand_id: payload.brand_id ?? 0,
+            site_id: payload.site_id ?? 0,
             user_type: payload.user_type ?? '',
             email: payload.email,
             login: payload.login ?? '',
-            currency: payload.currency ?? '',
             permissions: payload.permissions ?? [],
         };
     }

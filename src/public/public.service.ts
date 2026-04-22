@@ -26,21 +26,21 @@ export class PublicService {
             throw new BadRequestException('Referral not found!');
         }
 
-        // Configurações da brand
-        const brand = await this.prisma.brand.findUnique({
+        // Configurações da site
+        const site = await this.prisma.site.findUnique({
             where: {
-                id: admin.brand_id
+                id: admin.site_id
             }
         });
 
-        if (!brand) {
-            throw new BadRequestException('Brand not found!');
+        if (!site) {
+            throw new BadRequestException('Site not found!');
         }
 
-        // Pesquisa usuários da mesma brand com mesmos dados
+        // Pesquisa usuários da mesma site com mesmos dados
         const existingUser = await this.prisma.user.findFirst({
             where: {
-                brand_id: admin.brand_id,
+                site_id: admin.site_id,
                 OR: [
                     { login: dto.login },
                     { email: dto.email }
@@ -56,41 +56,22 @@ export class PublicService {
         const password = await bcrypt.hash(dto.password, 12);
         const permissions = this.usersService.getPermissionsByType(4);
         const parent_id = admin.type > 2 ? admin.id : 0;
-        const ngr_percent = admin.type > 2 ? admin.ngr_percent : (brand.ngr_percent || 0);
 
         try {
             const user = await this.prisma.user.create({
                 data: {
-                    brand_id: admin.brand_id,
+                    site_id: admin.site_id,
                     validated: true,
-                    confirmed: (brand.affiliate_signup_auto_approve) ? true : false,
                     status: 1,
-                    type: 4,
-                    validation_2fa: 0,
-                    manager_id: 0,
-                    parent_affiliate_id: parent_id,
+                    type: 10,
+                    manager_id: parent_id,
                     name: dto?.name ?? '',
                     login: dto?.login ?? dto.email,
                     email: dto.email,
                     phone: dto?.phone ?? '',
                     document: dto?.document ?? '',
                     password: password,
-                    currency: brand?.currency ?? 'usd',
-                    ngr_percent: ngr_percent,
                     permissions: permissions,
-                }
-            });
-
-            // Cria carteira
-            await this.prisma.wallet.create({
-                data: {
-                    brand_id: admin.brand_id,
-                    user_id: user.id,
-                    name: 'Carteira Principal',
-                    currency: brand?.currency ?? 'usd',
-                    description: '',
-                    balance: 0,
-                    status: 1
                 }
             });
 
@@ -116,7 +97,7 @@ export class PublicService {
             where: { user_token: token },
             select: {
                 id: true,
-                brand_id: true,
+                site_id: true,
                 login: true,
                 user_token: true
             }
@@ -126,29 +107,23 @@ export class PublicService {
             throw new BadRequestException('Referral not found');
         }
 
-        const brand = await this.prisma.brand.findUnique({
-            where: { id: user.brand_id },
+        const site = await this.prisma.site.findUnique({
+            where: { id: user.site_id },
             select: {
                 name: true,
                 url: true,
-                affiliate_auto_signup: true,
             }
         });
 
-        if (!brand) {
-            throw new BadRequestException('Brand not found');
-        }
-
-        // Se brand não permite auto cadastro
-        if (!brand.affiliate_auto_signup) {
-            throw new UnauthorizedException('Brand does not allow auto signup');
+        if (!site) {
+            throw new BadRequestException('Site not found');
         }
 
         return {
             token: user.user_token,
-            brand: {
-                name: brand.name,
-                url: brand.url,
+            site: {
+                name: site.name,
+                url: site.url,
             },
         };
 

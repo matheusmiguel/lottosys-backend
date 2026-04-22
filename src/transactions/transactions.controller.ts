@@ -21,7 +21,7 @@ export class TransactionsController {
             @Query('page') page: number = 1,
             @CurrentUser() user
     ) {
-        return this.transactionsService.listWithdrawals(date, enddate, sort, limit, page, user);
+        // return this.transactionsService.listWithdrawals(date, enddate, sort, limit, page, user);
     }
     
     // ALTERAR STATUS
@@ -33,6 +33,6 @@ export class TransactionsController {
         @Param('status', ParseIntPipe) status: number,
         @CurrentUser() user
     ) {
-        return this.transactionsService.updateTransactionStatus(id, status, user);
+        // return this.transactionsService.updateTransactionStatus(id, status, user);
     }
 }

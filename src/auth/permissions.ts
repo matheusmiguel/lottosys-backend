@@ -30,7 +30,7 @@ export const PERMISSIONS = {
             },
             {
                 key: 'adm.mwithdraws',
-                label: 'Gerenciar saques de afiliados',
+                label: 'Gerenciar saques de usuários',
                 default_in: [1, 2]
             },
             {
@@ -40,7 +40,7 @@ export const PERMISSIONS = {
             },
             {
                 key: 'adm.claff',
-                label: 'Alterar afiliado de um lead',
+                label: 'Alterar gerente de um cliente',
                 default_in: [1, 2]
             },
             {
@@ -52,54 +52,49 @@ export const PERMISSIONS = {
     },
     leads: {
         code: 'leads_view',
-        label: 'Visualização de Leads',
+        label: 'Visualização de Clientes',
         permissions: [
             {
                 key: 'ld.v_login',
-                label: 'Ver login do lead',
-                default_in: [1, 2, 3]
+                label: 'Ver login do cliente',
+                default_in: [1, 2, 5, 10]
             },
             {
                 key: 'ld.v_email',
-                label: 'Ver e-mail do lead',
-                default_in: [1, 2, 3]
+                label: 'Ver e-mail do cliente',
+                default_in: [1, 2, 5, 10]
             },
             {
                 key: 'ld.v_name',
-                label: 'Ver nome do lead',
-                default_in: [1, 2, 3]
+                label: 'Ver nome do cliente',
+                default_in: [1, 2, 5, 10]
             },
             {
                 key: 'ld.v_doc',
-                label: 'Ver documento do lead',
-                default_in: [1, 2, 3]
+                label: 'Ver documento do cliente',
+                default_in: [1, 2, 5, 10]
             },
             {
                 key: 'ld.v_phone',
-                label: 'Ver telefone do lead',
-                default_in: [1, 2, 3]
+                label: 'Ver telefone do cliente',
+                default_in: [1, 2, 5, 10]
             },
         ]
     },
-    subaffiliates: {
-        code: 'subaffiliates',
-        label: 'Subafiliados',
+    managers: {
+        code: 'managers',
+        label: 'Gestores',
         permissions: [
             {
-                key: 'subaf.register',
-                label: 'Cadastrar subafiliados',
-                default_in: [1, 2, 3, 4]
+                key: 'man.register',
+                label: 'Cadastrar usuários',
+                default_in: [1, 2, 5]
             },
             {
-                key: 'subaf.edit',
-                label: 'Editar subafiliados',
-                default_in: [1, 2, 3, 4]
+                key: 'man.edit',
+                label: 'Editar usuários gerenciados',
+                default_in: [1, 2, 5]
             },
-            {
-                key: 'subaf.commissions',
-                label: 'Gerenciar comissões de subafiliados',
-                default_in: [1, 2, 3, 4]
-            }
         ]
     }
 };

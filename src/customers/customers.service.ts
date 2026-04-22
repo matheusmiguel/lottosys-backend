@@ -1,56 +1,41 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CurrencyService } from 'src/currency/currency.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { SetAffiliateDto } from './dtos/SetAffiliateDto';
+import { SetManagerDto } from './dtos/SetManagerDto';
 
 @Injectable()
-export class RegistrationsService {
+export class CustomersService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly currencyService: CurrencyService
     ) { }
 
-    async setAffiliate(dto: SetAffiliateDto, currentUser: any) {
-        const registration = await this.prisma.registration.findUnique({
+    async setManager(dto: SetManagerDto, currentUser: any) {
+        const customer = await this.prisma.customer.findUnique({
             where: {
-                id: dto.lead_id,
-                brand_id: currentUser.brand_id
+                id: dto.customer_id,
+                site_id: currentUser.site_id
             }
         });
 
-        if (!registration) {
-            throw new NotFoundException('Lead not found!');
+        if (!customer) {
+            throw new NotFoundException('Customer not found!');
         }
 
-        const link = await this.prisma.link.findUnique({
+        const updated = await this.prisma.customer.update({
             where: {
-                id: dto.link_id,
-                brand_id: currentUser.brand_id
-            }
-        });
-
-        if (!link) {
-            throw new NotFoundException('Link not found!');
-        }
-
-        const updated = await this.prisma.registration.update({
-            where: {
-                id: dto.lead_id
+                id: dto.customer_id
             },
             data: {
-                affiliate_id: dto.affiliate_id,
-                link_id: dto.link_id,
-                deal_id: link.deal_id
+                user_id: dto.manager_id,
             }
         });
 
         return {
             status: 'success',
-            message: 'Lead updated successfully!',
+            message: 'Customer updated successfully!',
         };
     }
 
-    async listRegistrations(
+    async listCustomers(
         search_type: string,
         q: string,
         page: number = 1,
@@ -63,7 +48,7 @@ export class RegistrationsService {
         const skip = (page - 1) * limit;
 
         const where: any = {
-            brand_id: currentUser.brand_id
+            site_id: currentUser.site_id
         };
         const fieldPermissionsMap = {
             email: 'ld.v_email',
@@ -82,7 +67,7 @@ export class RegistrationsService {
 
         // Se for afiliado, só vê suas próprias conversões
         if (currentUser.user_type > 2) {
-            where.affiliate_id = currentUser.id;
+            where.user_id = currentUser.id;
 
             // ######### Checa permissões do afiliado #########
             Object.keys(fieldPermissionsMap).forEach((field) => {
@@ -135,29 +120,18 @@ export class RegistrationsService {
             }
         }
 
-        const [registrations, total] = await this.prisma.$transaction([
-            this.prisma.registration.findMany({
+        const [customers, total] = await this.prisma.$transaction([
+            this.prisma.customer.findMany({
                 where,
                 select: {
                     id: true,
+                    user_id: true,
                     name: true,
-                    login: true,
                     email: true,
                     phone: true,
                     document: true,
-                    img: true,
-                    signup_date: true,
-                    affiliate_id: true,
-                    link_id: true,
 
-                    link: {
-                        select: {
-                            id: true,
-                            name: true
-                        }
-                    },
-
-                    affiliate: {
+                    user: {
                         select: {
                             id: true,
                             login: true,
@@ -167,34 +141,28 @@ export class RegistrationsService {
                     }
                 },
                 orderBy: {
-                    signup_date: 'desc'
+                    created_at: 'desc'
                 },
                 skip,
                 take: limit
             }),
-            this.prisma.registration.count({
+            this.prisma.customer.count({
                 where
             })
         ]);
 
-        const sanitized = registrations.map((item) => ({
+        const sanitized = customers.map((item) => ({
             ...item,
             email: permissions.email ? item.email : null,
-            login: permissions.login ? item.login : null,
             name: permissions.name ? item.name : 'User ' + item.id,
             phone: permissions.phone ? item.phone : null,
             document: permissions.document ? item.document : null,
 
-            link: item.link ? {
-                id: item.link.id,
-                name: item.link.name
-            } : null,
-
-            affiliate: item.affiliate ? {
-                id: item.affiliate.id,
-                login: item.affiliate.login ?? null,
-                email: item.affiliate.email ?? null,
-                img: item.affiliate.img ?? null
+            user: item.user ? {
+                id: item.user.id,
+                login: item.user.login ?? null,
+                email: item.user.email ?? null,
+                img: item.user.img ?? null
             } : null
         }));
 

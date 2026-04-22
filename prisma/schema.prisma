@@ -7,140 +7,69 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Brand {
-    id     Int @id @default(autoincrement())
-    old_id Int @default(0)
+model Bet {
+    id          Int       @id @default(autoincrement())
+    site_id     Int
+    game_id     Int
+    region_id   Int
+    round_id    Int
+    customer_id Int
+    user_id     Int
+    ticket_id   Int
+    index       Int       @map("index") // Agrupamento de números no bilhete
+    status      Int // 1 - Aberto | 2 - Ganhou | 3 - Perdeu | 4 - Cancelado
+    number      Int // Número escolhido
+    created_at  DateTime  @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at  DateTime? @db.Timestamp(0)
 
-    user_id      Int
-    token        String @db.VarChar(50)
-    public_token String @db.VarChar(50)
-    url          String @db.VarChar(200)
+    ticket Ticket @relation(fields: [ticket_id], references: [id])
 
-    status   Int
-    name     String @db.VarChar(50)
-    document String @db.VarChar(20)
-    currency String @db.VarChar(5)
-
-    ngr_percent Int
-
-    affiliate_auto_signup         Boolean @db.TinyInt
-    affiliate_signup_auto_approve Boolean @db.TinyInt
-    withdrawal_configs            Json?
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-    links      Link[]
-
-    @@index([user_id])
-    @@index([token])
-    @@index([public_token])
-    @@index([created_at])
+    @@index([ticket_id])
     @@index([deleted_at])
-    @@map("brands")
+    @@index([number])
+    @@index([status])
+    @@map("bets")
 }
 
-model Deal {
-    id     Int @id @default(autoincrement())
-    old_id Int @default(0)
-
-    brand_id Int
-    user_id  Int
-    admin_id Int
-
-    status Int
-
-    name     String @db.VarChar(100)
-    currency String @default("brl") @db.VarChar(5)
-
-    click_amount  Int
-    click_percent Decimal @db.Decimal(5, 2)
-
-    lead_amount  Int
-    lead_percent Decimal @db.Decimal(5, 2)
-
-    deposit_amount  Int
-    deposit_percent Decimal @db.Decimal(5, 2)
-
-    cpa_amount  Int
-    cpa_percent Decimal @db.Decimal(5, 2)
-
-    revshare_percent Decimal @db.Decimal(5, 2)
-
-    min_transaction_amount Int
-
+model Customer {
+    id         Int       @id @default(autoincrement())
+    site_id    Int
+    user_id    Int // Usuário que indicou
+    name       String?   @db.VarChar(100)
+    email      String?   @db.VarChar(100)
+    phone      String    @unique @db.VarChar(20)
+    document   String?   @db.VarChar(20)
+    last_login DateTime? @db.Timestamp(0)
     created_at DateTime  @default(now()) @db.Timestamp(0)
     updated_at DateTime  @updatedAt @db.Timestamp(0)
     deleted_at DateTime? @db.Timestamp(0)
 
-    user             User?             @relation(fields: [user_id], references: [id])
-    admin            User              @relation("DealAdmin", fields: [admin_id], references: [id])
-    links            Link[]
-    siteTransactions SiteTransaction[]
-    deposits         Deposit[]
+    user    User     @relation(fields: [user_id], references: [id])
+    tickets Ticket[]
 
-    @@unique([old_id, brand_id, user_id, name])
-    @@index([brand_id])
+    @@index([site_id])
     @@index([user_id])
-    @@index([admin_id])
-    @@index([status])
     @@index([created_at])
     @@index([deleted_at])
-    @@map("deals")
+    @@map("customers")
 }
 
-model Deposit {
-    id Int @id @default(autoincrement())
+model Game {
+    id         Int       @id @default(autoincrement())
+    status     Int       @default(1)
+    name       String    @db.VarChar(50)
+    img        String    @db.VarChar(300)
+    created_at DateTime  @default(now()) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at DateTime? @db.Timestamp(0)
 
-    brand_id     Int
-    user_id      Int @default(0)
-    affiliate_id Int @default(0)
-    link_id      Int @default(0)
-    deal_id      Int @default(0)
+    rounds  Round[]
+    tickets Ticket[]
 
-    status Int
-
-    date         DateTime  @db.Timestamp(0)
-    payment_date DateTime? @db.Timestamp(0)
-    due_date     DateTime? @db.Timestamp(0)
-    currency     String    @default("brl") @db.VarChar(5)
-
-    amount       Int
-    commission   Int? @default(0)
-    bonus_amount Int? @default(0)
-
-    bonus_code  String? @db.VarChar(50)
-    external_id String  @db.VarChar(40)
-
-    is_first     Boolean? @default(false) @db.TinyInt
-    is_qualified Boolean? @default(false) @db.TinyInt
-
-    payment_url String? @db.VarChar(400)
-
-    paid Boolean? @default(false) @db.TinyInt
-
-    created_at DateTime      @default(now()) @db.Timestamp(0)
-    updated_at DateTime      @updatedAt @db.Timestamp(0)
-    deleted_at DateTime?     @db.Timestamp(0)
-    link       Link?         @relation(fields: [link_id], references: [id])
-    deal       Deal?         @relation(fields: [deal_id], references: [id])
-    affiliate  User?         @relation(fields: [affiliate_id], references: [id])
-    lead       Registration? @relation(fields: [user_id], references: [id])
-
-    @@unique([external_id, brand_id])
-    @@index([affiliate_id, status, created_at])
-    @@index([affiliate_id, is_first])
-    @@index([brand_id])
-    @@index([user_id])
-    @@index([affiliate_id])
-    @@index([link_id])
-    @@index([deal_id])
     @@index([status])
-    @@index([date])
-    @@index([external_id])
-    @@index([created_at])
     @@index([deleted_at])
-    @@map("deposits")
+    @@map("games")
 }
 
 model Ip {
@@ -172,561 +101,180 @@ model Ip {
     @@map("ips")
 }
 
-model Domain {
-    id Int @id @default(autoincrement())
+model Region {
+    id         Int       @id @default(autoincrement())
+    name       String    @db.VarChar(30)
+    created_at DateTime  @default(now()) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at DateTime? @db.Timestamp(0)
 
-    brand_id  Int
-    status    Int @default(1)
-    is_public Int
+    rounds  Round[]
+    tickets Ticket[]
+    users   User[]
 
-    name   String @db.VarChar(50)
-    domain String @db.VarChar(100)
-
-    @@index([brand_id])
-    @@index([status])
-    @@index([is_public])
-    @@index([domain])
-    @@map("domains")
+    @@index([created_at])
+    @@index([deleted_at])
+    @@map("regions")
 }
 
-model Link {
-    id     Int @id @default(autoincrement())
-    old_id Int @default(0)
+model Round {
+    id                 Int       @id @default(autoincrement())
+    site_id            Int
+    game_id            Int
+    region_id          Int
+    status             Int // 1 - Aberto | 2 - Finalizado | 4 - Cancelado
+    name               String    @db.VarChar(100)
+    end_date           DateTime  @db.Timestamp(0)
+    payout_total       Int // Em centavos
+    payout_accumulated Int // Valor de rodadas anteriores
+    payout_first       Int // Em centavos
+    payout_second      Int // Em centavos
+    payout_third       Int // Em centavos
+    bets_qty           Int
+    bets_amount        Int // Em centavos
+    created_at         DateTime  @default(now()) @db.Timestamp(0)
+    updated_at         DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at         DateTime? @db.Timestamp(0)
 
-    brand_id  Int
-    user_id   Int
-    deal_id   Int
-    wallet_id Int
+    game    Game     @relation(fields: [game_id], references: [id])
+    region  Region   @relation(fields: [region_id], references: [id])
+    tickets Ticket[]
+
+    @@index([site_id])
+    @@index([game_id])
+    @@index([region_id])
+    @@index([end_date])
+    @@index([deleted_at])
+    @@map("rounds")
+}
+
+model Site {
+    id Int @id @default(autoincrement())
+
+    user_id Int
+    token   String @db.VarChar(50)
+    url     String @db.VarChar(200)
 
     status Int
-    public Boolean @db.TinyInt
-
-    link_type Int
-
-    name        String  @db.VarChar(100)
-    description String? @db.VarChar(100)
-
-    url             String @db.VarChar(300)
-    destination_url String @db.VarChar(300)
+    name   String @db.VarChar(50)
 
     created_at DateTime  @default(now()) @db.Timestamp(0)
     updated_at DateTime  @updatedAt @db.Timestamp(0)
     deleted_at DateTime? @db.Timestamp(0)
 
-    type  LinkType? @relation(fields: [link_type], references: [id])
-    user  User?     @relation(fields: [user_id], references: [id])
-    brand Brand     @relation(fields: [brand_id], references: [id])
-    deal  Deal?     @relation(fields: [deal_id], references: [id])
-
-    registrations    Registration[]
-    deposits         Deposit[]
-    withdrawals      Withdrawal[]
-    transactions     Transaction[]
-    siteTransactions SiteTransaction[]
-
-    @@index([user_id, deleted_at])
-    @@index([brand_id])
     @@index([user_id])
-    @@index([deal_id])
-    @@index([wallet_id])
-    @@index([link_type])
-    @@index([status])
-    @@index([created_at])
-    @@index([deleted_at])
-    @@map("links")
-}
-
-model LinkClick {
-    id Int @id @default(autoincrement())
-
-    brand_id     Int
-    link_id      Int
-    affiliate_id Int
-    deal_id      Int
-
-    token String @db.VarChar(40)
-
-    ip_id Int @default(0)
-
-    referer String? @db.VarChar(300)
-
-    data Json @db.Json
-
-    registrations Int
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    @@index([brand_id])
-    @@index([link_id])
-    @@index([affiliate_id])
-    @@index([deal_id])
     @@index([token])
-    @@index([ip_id])
     @@index([created_at])
     @@index([deleted_at])
-    @@map("link_clicks")
+    @@map("sites")
 }
 
-model LinkType {
-    id     Int @id @default(autoincrement())
-    old_id Int @default(0)
+model Ticket {
+    id               Int       @id @default(autoincrement())
+    site_id          Int
+    game_id          Int
+    region_id        Int
+    round_id         Int
+    customer_id      Int
+    user_id          Int
+    status           Int // 1 - Aberto | 2 - Ganhou | 3 - Perdeu | 4 - Cancelado
+    amount           Int // Em centavos
+    payout           Int // Em centavos
+    currency         String    @default("brl") @db.VarChar(5)
+    total_commission Int // Em centavos
+    created_at       DateTime  @default(now()) @db.Timestamp(0)
+    updated_at       DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at       DateTime? @db.Timestamp(0)
 
-    brand_id Int
-    status   Int @default(1)
+    game         Game          @relation(fields: [game_id], references: [id])
+    region       Region        @relation(fields: [region_id], references: [id])
+    round        Round         @relation(fields: [round_id], references: [id])
+    customer     Customer      @relation(fields: [customer_id], references: [id])
+    user         User          @relation(fields: [user_id], references: [id])
+    bets         Bet[]
+    transactions Transaction[]
 
-    name     String @db.VarChar(30)
-    base_url String @db.VarChar(300)
-    links    Link[]
-
-    @@unique([old_id, brand_id, name, base_url])
-    @@index([brand_id])
-    @@index([status])
-    @@map("link_types")
-}
-
-model Log {
-    id BigInt @id @default(autoincrement()) @db.UnsignedBigInt
-
-    type String @db.VarChar(50)
-    user Int
-
-    data Json?
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    @@index([type])
-    @@index([user])
-    @@index([created_at])
-    @@index([deleted_at])
-    @@map("logs")
-}
-
-model Registration {
-    id     Int @id @default(autoincrement())
-    old_id Int @default(0)
-
-    brand_id    Int
-    link_id     Int?    @default(0)
-    click_id    Int?    @default(0)
-    click_token String? @db.VarChar(50)
-
-    affiliate_id Int? @default(0)
-    deal_id      Int? @default(0)
-
-    external_id String @db.VarChar(40)
-
-    name     String  @db.VarChar(200)
-    login    String  @db.VarChar(100)
-    email    String  @db.VarChar(255)
-    phone    String  @db.VarChar(20)
-    document String? @db.VarChar(20)
-    img      String? @db.VarChar(500)
-
-    address String? @db.VarChar(300)
-
-    birth_date DateTime? @db.Date
-
-    signup_date DateTime @default(now()) @db.Timestamp(0)
-
-    real_balance  Int? @default(0)
-    bonus_balance Int? @default(0)
-
-    currency String? @default("brl") @db.VarChar(5)
-
-    is_ftd  Boolean? @default(false) @db.TinyInt
-    is_qftd Boolean? @default(false) @db.TinyInt
-
-    validated Boolean? @default(false) @db.TinyInt
-
-    created_at  DateTime     @default(now()) @db.Timestamp(0)
-    updated_at  DateTime     @updatedAt @db.Timestamp(0)
-    deleted_at  DateTime?    @db.Timestamp(0)
-    link        Link?        @relation(fields: [link_id], references: [id])
-    affiliate   User?        @relation("AffiliateRegistrations", fields: [affiliate_id], references: [id])
-    deposits    Deposit[]
-    withdrawals Withdrawal[]
-
-    @@unique([external_id, brand_id])
-    @@index([brand_id])
-    @@index([link_id])
-    @@index([click_id])
-    @@index([affiliate_id])
-    @@index([deal_id])
-    @@index([external_id])
-    @@index([email])
-    @@index([created_at])
-    @@map("registrations")
-}
-
-model SiteMigration {
-    id Int @id @default(autoincrement())
-
-    brand_id Int
-
-    url String @db.VarChar(300)
-
-    finished Boolean @db.TinyInt
-
-    migrated_users Int
-    queries_qty    Int
-
-    current_page Int @default(1)
-
-    last_check DateTime @db.Timestamp(0)
-
-    current_admin_token String @db.VarChar(100)
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    @@index([brand_id])
-    @@index([finished])
-    @@index([created_at])
-    @@map("site_migrations")
-}
-
-model SiteTransaction {
-    id Int @id @default(autoincrement())
-
-    brand_id     Int
-    user_id      Int
-    affiliate_id Int @default(0)
-    link_id      Int @default(0)
-    deal_id      Int @default(0)
-
-    external_id String @db.VarChar(40)
-
-    amount   Int
-    returns  Int
-    currency String @default("brl") @db.VarChar(5)
-
-    is_bonus  Boolean? @default(false) @db.TinyInt
-    resolved  Boolean? @default(false) @db.TinyInt
-    paid      Boolean? @default(false) @db.TinyInt
-    affiliate User?    @relation(fields: [affiliate_id], references: [id])
-    link      Link?    @relation(fields: [link_id], references: [id])
-    deal      Deal?    @relation(fields: [deal_id], references: [id])
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    @@unique([external_id, brand_id])
-    @@index([brand_id])
+    @@index([site_id])
     @@index([user_id])
-    @@index([affiliate_id])
-    @@index([link_id])
-    @@index([deal_id])
-    @@index([external_id])
+    @@index([customer_id])
     @@index([created_at])
-    @@map("site_transactions")
+    @@index([deleted_at])
+    @@index([region_id])
+    @@index([round_id])
+    @@map("tickets")
 }
 
 model Transaction {
-    id Int @id @default(autoincrement())
+    id          Int       @id @default(autoincrement())
+    site_id     Int
+    user_id     Int
+    ticket_id   Int
+    status      Int
+    type        Int       @db.TinyInt
+    title       String    @db.VarChar(50)
+    description String    @db.VarChar(50)
+    amount      Int // Em centavos
+    currency    String    @default("brl") @db.VarChar(5)
+    created_at  DateTime  @default(now()) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at  DateTime? @db.Timestamp(0)
 
-    brand_id      Int
-    user_id       Int
-    link_id       Int @default(0)
-    wallet_id     Int
-    settlement_id Int @default(0)
+    user   User   @relation(fields: [user_id], references: [id])
+    ticket Ticket @relation(fields: [ticket_id], references: [id])
 
-    status Int
-
-    category String @db.VarChar(20)
-
-    type Int
-
-    paid Boolean @db.TinyInt
-
-    action_type Int
-    action_id   Int
-
-    title       String @db.VarChar(100)
-    description String @db.VarChar(300)
-
-    amount    Int
-    currency  String   @default("brl") @db.VarChar(5)
-    sub_id    Int      @default(0)
-    is_manual Boolean? @default(false) @db.TinyInt
-
-    ngr               Int @default(0)
-    parent_commission Int @default(0)
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    link   Link?   @relation(fields: [link_id], references: [id])
-    user   User?   @relation(fields: [user_id], references: [id])
-    wallet Wallet? @relation(fields: [wallet_id], references: [id])
-
-    @@index([wallet_id, paid, created_at])
-    @@index([wallet_id, paid, created_at, currency, type])
-    @@index([paid, created_at, wallet_id])
-    @@index([brand_id, user_id, created_at])
-    @@index([brand_id, link_id, created_at])
-    @@index([brand_id, status, created_at])
-    @@index([brand_id])
+    @@index([site_id])
     @@index([user_id])
-    @@index([link_id])
-    @@index([wallet_id])
-    @@index([status])
-    @@index([category])
-    @@index([type])
-    @@index([action_type, action_id])
     @@index([created_at])
+    @@index([deleted_at])
+    @@index([ticket_id])
     @@map("transactions")
 }
 
-model UserAssociation {
-    id Int @id @default(autoincrement())
-
-    brand_id     Int
-    affiliate_id Int
-
-    status Int
-
-    email String @db.VarChar(200)
-
-    link_id Int
-    deal_id Int
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    @@index([brand_id])
-    @@index([affiliate_id])
-    @@index([email])
-    @@index([link_id])
-    @@index([deal_id])
-    @@index([created_at])
-    @@map("user_association")
-}
-
-model Wallet {
-    id     Int @id @default(autoincrement())
-    old_id Int @default(0)
-
-    brand_id Int
-    user_id  Int
-
-    name        String @db.VarChar(50)
-    description String @db.VarChar(200)
-
-    status   Int    @db.TinyInt
-    balance  Int
-    currency String @default("brl") @db.VarChar(5)
-
-    holder_pix      String? @db.VarChar(60)
-    holder_name     String? @db.VarChar(200)
-    holder_document String? @db.VarChar(20)
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-
-    transactions      Transaction[]
-    walletSettlements WalletSettlement[]
-
-    @@unique([old_id, brand_id, user_id, name])
-    @@index([brand_id])
-    @@index([user_id])
-    @@map("wallets")
-}
-
-model Webhook {
-    id Int @id @default(autoincrement())
-
-    brand_id Int
-    user_id  Int
-
-    url String @db.VarChar(500)
-
-    method String @default("POST") @db.VarChar(5)
-
-    headers Json @db.Json
-
-    send_paid_deposit       Boolean? @default(false) @db.TinyInt
-    send_first_paid_deposit Boolean? @default(false) @db.TinyInt
-    send_deposit_request    Boolean? @default(false) @db.TinyInt
-
-    send_paid_withdrawal       Boolean? @default(false) @db.TinyInt
-    send_first_paid_withdrawal Boolean? @default(false) @db.TinyInt
-    send_canceled_withdrawal   Boolean? @default(false) @db.TinyInt
-    send_withdrawal_request    Boolean? @default(false) @db.TinyInt
-
-    send_signup           Boolean? @default(false) @db.TinyInt
-    send_account_modified Boolean? @default(false) @db.TinyInt
-    send_effectived_user  Boolean? @default(false) @db.TinyInt
-
-    created_by Int
-
-    created_at  DateTime     @default(now()) @db.Timestamp(0)
-    updated_at  DateTime     @updatedAt @db.Timestamp(0)
-    deleted_at  DateTime?    @db.Timestamp(0)
-    user        User?        @relation("WebhookUser", fields: [user_id], references: [id])
-    creator     User?        @relation("WebhookCreator", fields: [created_by], references: [id])
-    webhookLogs WebhookLog[]
-
-    @@unique([user_id, brand_id, url])
-    @@index([brand_id])
-    @@index([user_id])
-    @@map("webhooks")
-}
-
-model WebhookLog {
-    id Int @id @default(autoincrement())
-
-    brand_id   Int
-    user_id    Int
-    webhook_id Int
-
-    type Int
-
-    url      String @db.VarChar(200)
-    category String @db.VarChar(50)
-    attempt  Int    @default(1)
-
-    payload  String @db.MediumText
-    response String @db.MediumText
-
-    data Json?
-
-    http_status Int
-
-    webhook_client String @default("server") @db.VarChar(10)
-
-    created_at DateTime  @default(now()) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt @db.Timestamp(0)
-    deleted_at DateTime? @db.Timestamp(0)
-    webhook    Webhook?  @relation(fields: [webhook_id], references: [id])
-
-    @@index([brand_id])
-    @@index([user_id])
-    @@index([webhook_id])
-    @@index([type])
-    @@map("webhook_logs")
-}
-
-model Withdrawal {
-    id Int @id @default(autoincrement())
-
-    brand_id     Int
-    user_id      Int
-    affiliate_id Int
-    link_id      Int
-    deal_id      Int
-
-    external_id String @db.VarChar(40)
-
-    status Int
-
-    date         DateTime  @default(now()) @db.Timestamp(0)
-    payment_date DateTime? @db.Timestamp(0)
-
-    amount     Int
-    currency   String @default("brl") @db.VarChar(5)
-    commission Int
-
-    is_first Boolean @db.TinyInt
-
-    created_at DateTime      @default(now()) @db.Timestamp(0)
-    updated_at DateTime      @updatedAt @db.Timestamp(0)
-    deleted_at DateTime?     @db.Timestamp(0)
-    lead       Registration? @relation(fields: [user_id], references: [id])
-    affiliate  User?         @relation(fields: [affiliate_id], references: [id])
-    link       Link?         @relation(fields: [link_id], references: [id])
-
-    @@unique([external_id, brand_id])
-    @@index([brand_id])
-    @@index([user_id])
-    @@index([affiliate_id])
-    @@index([link_id])
-    @@index([deal_id])
-    @@index([external_id])
-    @@index([status])
-    @@map("withdrawals")
-}
-
 model User {
-    id                      Int               @id @default(autoincrement())
-    old_id                  Int               @default(0)
-    brand_id                Int
-    validated               Boolean           @db.TinyInt
-    confirmed               Boolean           @db.TinyInt
-    status                  Int               @default(1)
-    type                    Int
-    validation_2fa          Int
-    manager_id              Int
-    parent_affiliate_id     Int
-    login                   String            @db.VarChar(30)
-    name                    String            @db.VarChar(200)
-    email                   String            @db.VarChar(200)
-    password                String            @db.VarChar(255)
-    phone                   String?           @db.VarChar(20)
-    document                String?           @db.VarChar(20)
-    img                     String?           @db.VarChar(500)
-    currency                String            @default("brl") @db.VarChar(5)
-    ngr_percent             Decimal           @db.Decimal(5, 2)
-    sub_commissions         Json?
-    current_refresh_token   String?           @db.VarChar(500)
-    refresh_token_id        String?           @db.VarChar(64)
-    user_token              String?           @db.VarChar(64)
-    last_login              DateTime?         @db.Timestamp(0)
-    permissions             Json
-    withdrawal_configs      Json?
-    two_factor_secret       String?
-    two_factor_enabled      Boolean           @default(false)
-    created_at              DateTime          @default(now()) @db.Timestamp(0)
-    updated_at              DateTime          @updatedAt @db.Timestamp(0)
-    deleted_at              DateTime?         @db.Timestamp(0)
-    deals_created           Deal[]            @relation("DealAdmin")
-    deals                   Deal[]
-    links                   Link[]
-    affiliate_registrations Registration[]    @relation("AffiliateRegistrations")
-    transactions            Transaction[]
-    siteTransactions        SiteTransaction[]
-    deposits                Deposit[]
-    withdrawals             Withdrawal[]
-    webhooks                Webhook[]         @relation("WebhookUser")
-    created_webhooks        Webhook[]         @relation("WebhookCreator")
+    id                    Int       @id @default(autoincrement())
+    site_id               Int
+    validated             Boolean   @db.TinyInt // Usuário validou e-mail e telefone?
+    status                Int       @default(1)
+    type                  Int       @default(10) // 1 - Superadmin | 2 - Admin | 5 - Gestor | 10 - Vendedor
+    region_id             Int       @default(0)
+    manager_id            Int       @default(0) // ID do gestor
+    login                 String    @db.VarChar(30)
+    name                  String    @db.VarChar(200)
+    email                 String    @db.VarChar(200)
+    password              String    @db.VarChar(255)
+    phone                 String?   @db.VarChar(20)
+    document              String?   @db.VarChar(20)
+    img                   String    @default("https://staketech.s3.us-east-1.amazonaws.com/cdn/avatars/0.jpg") @db.VarChar(500)
+    bet_credit            Int       @default(0) // Em centavos
+    balance               Int       @default(0) // Em centavos
+    currency              String    @default("brl") @db.VarChar(5)
+    current_refresh_token String?   @db.VarChar(500)
+    refresh_token_id      String?   @db.VarChar(64)
+    user_token            String?   @db.VarChar(64)
+    last_login            DateTime? @db.Timestamp(0)
+    permissions           Json?
+    created_at            DateTime  @default(now()) @db.Timestamp(0)
+    updated_at            DateTime  @updatedAt @db.Timestamp(0)
+    deleted_at            DateTime? @db.Timestamp(0)
 
-    @@unique([brand_id, email, deleted_at])
-    @@index([brand_id])
-    @@index([email])
+    region       Region        @relation(fields: [region_id], references: [id])
+    customers    Customer[]
+    tickets      Ticket[]
+    transactions Transaction[]
+
+    @@unique([site_id, email, deleted_at], name: "users_brand_id_email_deleted_at_key")
+    @@index([type])
     @@index([login])
+    @@index([name])
+    @@index([email])
+    @@index([document])
+    @@index([site_id])
     @@index([manager_id])
-    @@index([user_token])
-    @@index([parent_affiliate_id])
-    @@index([brand_id, login])
-    @@map("users")
-}
-
-model WalletSettlement {
-    id               Int       @id @default(autoincrement())
-    brand_id         Int
-    user_id          Int
-    wallet_id        Int
-    amount           Int
-    currency         String    @default("usd") @db.VarChar(5)
-    transactions_qty Int
-    created_at       DateTime  @default(now())
-    updated_at       DateTime  @updatedAt
-    deleted_at       DateTime?
-    wallet           Wallet?   @relation(fields: [wallet_id], references: [id])
-
-    @@index([brand_id])
-    @@index([user_id])
-    @@index([wallet_id])
+    @@index([created_at])
     @@index([deleted_at])
-    @@map("wallet_settlements")
+    @@index([user_token])
+    @@index([region_id])
+    @@map("users")
 }
 
 model PasswordReset {
@@ -738,21 +286,4 @@ model PasswordReset {
     created_at DateTime @default(now())
 
     @@map("password_resets")
-}
-
-model EventLog {
-    id       Int @id @default(autoincrement())
-    brand_id Int
-    status   Int @default(0) // 0 - Pendente | 1 - Processado | 3 - Erro
-
-    payload  Json @db.Json
-    response Json @db.Json
-
-    created_at DateTime @default(now()) @db.Timestamp(0)
-    updated_at DateTime @updatedAt @db.Timestamp(0)
-
-    @@index([brand_id])
-    @@index([status])
-    @@index([created_at])
-    @@map("event_logs")
 }

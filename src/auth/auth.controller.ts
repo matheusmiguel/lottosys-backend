@@ -23,32 +23,6 @@ import { CurrentUser } from './decorators/current-user.decorator';
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
-    // Configuração (rotas autenticadas)
-    @Get('2fa/generate')
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    generate2FA(@CurrentUser() user: any) {
-        return this.authService.generate2FA(user.id);
-    }
-
-    @Post('2fa/enable')
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    enable2FA(@CurrentUser() user: any, @Body('token') token: string) {
-        return this.authService.enable2FA(user.id, token);
-    }
-
-    @Post('2fa/disable')
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    disable2FA(@CurrentUser() user: any, @Body('token') token: string) {
-        return this.authService.disable2FA(user.id, token);
-    }
-
-    // Verificação no login (rota pública)
-    @Post('2fa/verify')
-    async verify2FA(@Body() dto: Verify2FADto) {
-        await this.authService.validate2FA(dto.user_id, dto.token);
-        return this.authService.issueTokensWithNewRefreshId(dto.user_id);
-    }
-
     @Post('recovery-email')
     async recoveryEmail(@Body() dto: RecoveryEmailDto) {
         return this.authService.getRecoveryEmail(dto.email);
@@ -63,6 +37,7 @@ export class AuthController {
             dto.password_confirm,
         );
     }
+    
     // POST /auth/login
     @Post('login')
     async login(@Body() dto: LoginDto) {

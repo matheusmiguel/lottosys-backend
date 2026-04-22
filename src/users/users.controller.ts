@@ -7,7 +7,6 @@ import { CurrentUserService } from 'src/auth/current-user.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateUserDto } from './dtos/update-user.dto';
-import { UpdateSubcommissionsDto } from './dtos/update-subcommissions.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -33,7 +32,7 @@ export class UsersController {
     }
 
     @Post()
-    @PermissionsAny('adm.cusers', 'subaf.register')
+    @PermissionsAny('adm.cusers', 'man.register')
     async create(
         @Body() dto: CreateUserDto,
         @CurrentUser() user
@@ -41,30 +40,9 @@ export class UsersController {
         return this.usersService.createUser(dto, user);
     }
 
-    // GET SUBCOMMISSIONS
-    @Get(':id/subcommissions')
-    @Permissions('subaf.commissions')
-    async getUserSubCommissions(
-        @Param('id', ParseIntPipe) id: number,
-        @CurrentUser() user
-    ) {
-        return this.usersService.getUserSubCommissions(id, user);
-    }
-
-    // UPDATE SUBCOMMISSIONS
-    @Put(':id/subcommissions')
-    @Permissions('subaf.commissions')
-    async updateUserSubcommissions(
-        @Param('id', ParseIntPipe) id: number,
-        @Body() dto: UpdateSubcommissionsDto,
-        @CurrentUser() user
-    ) {
-        return this.usersService.updateUserSubcommissions(id, dto, user);
-    }
-
     // GET BY ID
     @Get(':id')
-    @PermissionsAny('adm.eusers', 'subaf.edit')
+    @PermissionsAny('adm.eusers', 'man.edit')
     async getUser(
         @Param('id', ParseIntPipe) id: number,
         @CurrentUser() user
@@ -74,7 +52,7 @@ export class UsersController {
 
     // UPDATE
     @Put(':id')
-    @PermissionsAny('adm.eusers', 'subaf.edit')
+    @PermissionsAny('adm.eusers', 'man.edit')
     async updateUser(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: UpdateUserDto,
@@ -102,16 +80,6 @@ export class UsersController {
         @CurrentUser() user
     ) {
         return this.usersService.updateUserStatus(id, user);
-    }
-
-    // CONFIRMAR USUÁRIO
-    @Patch(':id/confirm')
-    @Permissions('adm.eusers')
-    async confirmUser(
-        @Param('id', ParseIntPipe) id: number,
-        @CurrentUser() user
-    ) {
-        return this.usersService.confirmUser(id, user);
     }
 
     // DELETE
